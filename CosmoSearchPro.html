@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>🌌 CosmoSearch Pro</title>
+<style>
+/* === General Styles === */
+body { margin:0; font-family:'Arial',sans-serif; background: linear-gradient(to right,#0f2027,#203a43,#2c5364); color:white; display:flex; justify-content:center; align-items:center; height:100vh;}
+.browser-container { width:90%; max-width:950px; height:90%; background:rgba(0,0,0,0.85); border-radius:15px; display:flex; flex-direction:column; overflow:hidden; box-shadow:0 0 20px #0ff; position:relative;}
+header { display:flex; justify-content:space-between; align-items:center; padding:10px 20px; background:rgba(0,0,0,0.7);}
+.logo { font-size:1.5em; font-weight:bold; }
+.tabs { display:flex; gap:5px; }
+.tab { background:transparent; border:1px solid #0ff; color:#0ff; padding:5px 10px; border-radius:5px; cursor:pointer; transition:0.3s; }
+.tab.active, .tab:hover { background:#0ff; color:#000; }
+main { flex:1; display:flex; flex-direction:column; justify-content:flex-start; align-items:center; overflow:auto; padding:10px;}
+.search-section { display:flex; gap:10px; margin-top:10px;}
+#searchInput { width:300px; padding:10px; border-radius:8px; border:none; outline:none;}
+#searchBtn { padding:10px 15px; border:none; border-radius:8px; background:#0ff; color:#000; cursor:pointer; transition:0.3s;}
+#searchBtn:hover { background:#00bcd4; }
+.results { margin-top:20px; width:100%; text-align:left; }
+footer { padding:10px 20px; background:rgba(0,0,0,0.7); text-align:right;}
+footer button { background:transparent; border:1px solid #0ff; color:#0ff; padding:5px 10px; border-radius:5px; cursor:pointer; transition:0.3s;}
+footer button:hover { background:#0ff; color:#000; }
+/* Dark/Light mode */
+body.light-mode { background: linear-gradient(to right,#fff,#eee); color:#000;}
+body.light-mode .tabs button, body.light-mode footer button { color:#0077cc; border-color:#0077cc; }
+body.light-mode .tabs button.active, body.light-mode .tabs button:hover, body.light-mode footer button:hover { background:#0077cc; color:#fff;}
+/* Mini game overlay */
+#gameOverlay { position:absolute; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.95); display:none; flex-direction:column; align-items:center; justify-content:center; z-index:999;}
+#gameCanvas { background:black; border:2px solid #0ff; border-radius:10px;}
+#closeGame { margin-top:10px; padding:5px 10px; border:none; border-radius:5px; background:#0ff; color:#000; cursor:pointer;}
+</style>
+</head>
+<body>
+<div class="browser-container">
+  <header>
+    <div class="logo">🌌 CosmoSearch Pro</div>
+    <div class="tabs">
+      <button class="tab active" data-tab="home">Home</button>
+      <button class="tab" data-tab="new">New Tab</button>
+    </div>
+  </header>
+  <main>
+    <div class="search-section">
+      <input type="text" id="searchInput" placeholder="Search the cosmos...">
+      <button id="searchBtn">🔍 Search</button>
+      <button id="gameBtn">🚀 Play Game</button>
+    </div>
+    <div class="results" id="results"></div>
+  </main>
+  <footer>
+    <button id="themeBtn">🌙 Toggle Theme</button>
+  </footer>
+</div>
+
+<!-- Mini Game Overlay -->
+<div id="gameOverlay">
+  <canvas id="gameCanvas" width="600" height="400"></canvas>
+  <button id="closeGame">Close Game</button>
+</div>
+
+<script>
+// === Theme toggle ===
+const themeBtn = document.getElementById('themeBtn');
+themeBtn.addEventListener('click', ()=>document.body.classList.toggle('light-mode'));
+
+// === Tabs ===
+const tabs = document.querySelectorAll('.tab');
+tabs.forEach(tab=>{
+  tab.addEventListener('click', ()=>{
+    tabs.forEach(t=>t.classList.remove('active'));
+    tab.classList.add('active');
+    const tabName = tab.dataset.tab;
+    document.getElementById('results').innerHTML = `<p>Welcome to ${tabName} tab!</p>`;
+  });
+});
+
+// === Internal search engine ===
+const searchBtn = document.getElementById('searchBtn');
+const searchInput = document.getElementById('searchInput');
+const resultsDiv = document.getElementById('results');
+
+const fakeDatabase = {
+  "planets": ["Mercury","Venus","Earth","Mars","Jupiter","Saturn","Uranus","Neptune"],
+  "stars": ["Sirius","Betelgeuse","Polaris","Rigel"],
+  "galaxies": ["Milky Way","Andromeda","Triangulum","Whirlpool"]
+};
+
+searchBtn.addEventListener('click', ()=>{
+  const query = searchInput.value.toLowerCase().trim();
+  if(query===""){ alert("Please type a search term!"); return; }
+  let results=[];
+  for(let key in fakeDatabase){
+    fakeDatabase[key].forEach(item=>{
+      if(item.toLowerCase().includes(query)) results.push(`<b>${item}</b> (${key})`);
+    });
+  }
+  resultsDiv.innerHTML = results.length>0 ? `<p>Results for "${query}":</p><ul>${results.map(r=>`<li>${r}</li>`).join("")}</ul>` : `<p>No results for "${query}"</p>`;
+});
+
+// Press Enter to search
+searchInput.addEventListener('keypress', e=>{ if(e.key==='Enter') searchBtn.click(); });
+
+// === Mini game: Asteroid dodger ===
+const gameOverlay = document.getElementById('gameOverlay');
+const gameBtn = document.getElementById('gameBtn');
+const closeGame = document.getElementById('closeGame');
+const canvas = document.getElementById('gameCanvas');
+const ctx = canvas.getContext('2d');
+
+let player, asteroids, gameInterval;
+
+gameBtn.addEventListener('click', ()=>{
+  gameOverlay.style.display="flex";
+  startGame();
+});
+closeGame.addEventListener('click', ()=>{
+  gameOverlay.style.display="none";
+  clearInterval(gameInterval);
+});
+
+// Game logic
+function startGame(){
+  player = {x:canvas.width/2-15, y:canvas.height-30, width:30, height:30};
+  asteroids = [];
+  let frames=0;
+
+  gameInterval = setInterval(()=>{
+    ctx.clearRect(0,0,canvas.width,canvas.height);
+
+    // Move player with arrow keys
+    document.onkeydown = e=>{
+      if(e.key==='ArrowLeft' && player.x>0) player.x-=10;
+      if(e.key==='ArrowRight' && player.x+player.width<canvas.width) player.x+=10;
+    };
+
+    // Draw player
+    ctx.fillStyle="lime"; ctx.fillRect(player.x,player.y,player.width,player.height);
+
+    // Spawn asteroids
+    if(frames%50===0) asteroids.push({x:Math.random()*(canvas.width-20), y:0, width:20, height:20, speed:Math.random()*2+1});
+    // Move and draw asteroids
+    for(let i=asteroids.length-1;i>=0;i--){
+      const a=asteroids[i]; a.y+=a.speed; ctx.fillStyle="red"; ctx.fillRect(a.x,a.y,a.width,a.height);
+      // Collision
+      if(a.x<player.x+player.width && a.x+a.width>player.x && a.y<player.y+player.height && a.y+a.height>player.y){
+        alert("Game Over!"); clearInterval(gameInterval); gameOverlay.style.display="none"; return;
+      }
+      if(a.y>canvas.height) asteroids.splice(i,1);
+    }
+    frames++;
+  },20);
+}
+</script>
+</body>
+</html>
